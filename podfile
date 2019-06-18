@@ -5,6 +5,7 @@ use_frameworks!
 target 'SwiftStudyDemo' do
 pod 'Moya'
 pod 'SnapKit', '~> 5.0.0'
+pod 'SwiftyJSON'
 end
 
 

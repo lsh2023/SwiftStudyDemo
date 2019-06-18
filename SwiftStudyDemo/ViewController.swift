@@ -15,6 +15,12 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         // Do any additional setup after loading the view.
        self.navigationItem.rightBarButtonItem = UIBarButtonItem.init(barButtonSystemItem: .add, target: self, action: #selector(rightBarButtonItemAction))
        self.view.addSubview(tableView)
+        NotificationCenter.default.addObserver(self, selector: #selector(saveAction), name:NSNotification.Name(rawValue: "SAVEDATA"), object: nil)
+        
+    }
+    
+    @objc func saveAction() {
+//        UserDefaults.standard.set(dataSource, forKey: "SaveData")
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
