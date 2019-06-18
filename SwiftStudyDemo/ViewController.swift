@@ -17,19 +17,39 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
        self.view.addSubview(tableView)
     }
     
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    func numberOfSections(in tableView: UITableView) -> Int {
         return dataSource.count
+    }
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        let headerModel : CustomHeaderModel
+        if dataSource.count > 0 {
+           headerModel  = dataSource[section] as! CustomHeaderModel
+            return headerModel.headerArray?.count ?? 0
+        }else {
+           return 0
+        }
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell : CustomCell = tableView.dequeueReusableCell(withIdentifier: "CustomCell", for: indexPath) as! CustomCell
-        let customModel = dataSource[indexPath.row]
+        
+        let headerModel : CustomHeaderModel = dataSource[indexPath.section] as! CustomHeaderModel
+        let customModel = headerModel.headerArray?[indexPath.row]
         cell.customModel = (customModel as! CustomModel)
-        cell.selectBlock = { model in
-            self.dataSource.replaceObject(at: indexPath.row, with: model)
-            self.tableView.reloadRows(at: [indexPath], with: .none)
-        }
+    
         return cell
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        
+        let headerModel : CustomHeaderModel = dataSource[indexPath.section] as! CustomHeaderModel
+        let customModel : CustomModel = headerModel.headerArray?[indexPath.row] as! CustomModel
+        customModel.isSelect = !customModel.isSelect!
+        headerModel.headerArray?.replaceObject(at: indexPath.row, with: customModel)
+        self.dataSource.replaceObject(at: indexPath.section, with:headerModel)
+        tableView.reloadRows(at: [indexPath], with: .left)
+    
     }
     
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
@@ -41,8 +61,44 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
     }
     
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        self.dataSource.removeObject(at: indexPath.row)
+        
+        let headerModel : CustomHeaderModel = dataSource[indexPath.section] as! CustomHeaderModel
+        headerModel.headerArray?.removeObject(at: indexPath.row)
+        self.dataSource.replaceObject(at: indexPath.section, with: headerModel)
+        
         self.tableView.reloadData()
+        
+    }
+    
+    func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        let view = UIView()
+        
+        let headerModel : CustomHeaderModel = dataSource[section] as! CustomHeaderModel
+        
+        let label = UILabel.init(frame:CGRect.init(x: 0, y: 0, width: UIScreen.main.bounds.size.width, height: 44))
+        label.text = headerModel.time
+        label.textColor = .darkText
+        label.backgroundColor = #colorLiteral(red: 1, green: 0.9406069163, blue: 0.2816785727, alpha: 1)
+        label.font = UIFont.systemFont(ofSize: 16)
+        view.addSubview(label)
+        
+        return view
+    }
+    
+    func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
+        return UIView()
+    }
+    
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        return 44
+    }
+    
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 44
+    }
+    
+    func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
+        return 0.0000001
     }
     
     lazy var tableView: UITableView = {
@@ -52,6 +108,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         tableView.dataSource = self
         tableView.register(CustomCell.self, forCellReuseIdentifier: "CustomCell")
         tableView.separatorStyle = .none
+        tableView.backgroundColor = #colorLiteral(red: 0.9446779822, green: 0.9446779822, blue: 0.9446779822, alpha: 1)
         return tableView
     }()
     
@@ -62,17 +119,58 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
 
     @objc func rightBarButtonItemAction() {
         
+        let saveTime : String = UserDefaults.standard.object(forKey: "SaveTime") as? String ?? ""
+        let saveDateArray : Array = saveTime.components(separatedBy: " ")
+        
+        let saveDate : String
+        if saveDateArray.count > 1 {
+            saveDate = saveDateArray[1]
+        }else {
+            saveDate = ""
+        }
+        
+        let currentArray : Array = currentTime().components(separatedBy: " ")
+        let currentDate : String
+        if currentArray.count > 1 {
+            currentDate = currentArray[1]
+        }else {
+            currentDate = ""
+        }
+        
         let alertController = UIAlertController.init(title: "", message: "", preferredStyle: .alert)
         alertController.addTextField { (textField:UITextField) in
-            textField.placeholder = "输入打卡项目"
+            textField.placeholder = "输入内容"
+            textField.keyboardType = .default
+            textField.returnKeyType = .done
         }
         
         let cancelAction = UIAlertAction(title: "取消", style: .cancel, handler: nil)
         let okAction = UIAlertAction(title: "确定", style: .default) { (action:UIAlertAction) in
             let textField = alertController.textFields?.first
+            
             let customModel = CustomModel()
             customModel.text = textField?.text
-            self.dataSource.add(customModel)
+            customModel.isSelect = false
+            if saveDate != currentDate {
+                let customHeaderModel = CustomHeaderModel()
+                customHeaderModel.headerArray = NSMutableArray.init(capacity: 0)
+                customHeaderModel.time = currentDate
+                customHeaderModel.headerArray?.add(customModel)
+                self.dataSource.add(customHeaderModel)
+            } else {
+                let customHeaderModel : CustomHeaderModel
+                if self.dataSource.count > 0 {
+                    customHeaderModel = self.dataSource.lastObject as! CustomHeaderModel
+                    customHeaderModel.headerArray?.add(customModel)
+                    self.dataSource.replaceObject(at: self.dataSource.count - 1, with: customHeaderModel)
+                }else {
+                    let customHeaderModel = CustomHeaderModel()
+                    customHeaderModel.headerArray = NSMutableArray.init(capacity: 0)
+                    customHeaderModel.time = currentDate
+                    customHeaderModel.headerArray?.add(customModel)
+                    self.dataSource.add(customHeaderModel)
+                }
+            }
             self.tableView.reloadData()
         }
         
@@ -80,77 +178,16 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         alertController.addAction(okAction)
         self.present(alertController, animated: true, completion: nil)
         
+        UserDefaults.standard.set(currentTime(), forKey: "SaveTime")
+        
     }
+    
+    func currentTime() -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return dateFormatter.string(from: Date())
+    }
+    
     
 }
 
-class CustomModel: NSObject {
-    var text : String?
-    var isSelect : Bool?
-    var indexPath : NSIndexPath?
-}
-
-
-class CustomCell: UITableViewCell {
-    
-  
-    var selectBlock:((_ model:CustomModel) -> Void)?
-    var currentModel : CustomModel?
-    
-    
-    // 重写父类方法
-    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style:style, reuseIdentifier:reuseIdentifier)
-        self.selectionStyle = .none
-        self.contentView.backgroundColor = .white
-        self.contentView.addSubview(self.contentLabel)
-        self.contentView.addSubview(self.selectButton)
-        self.contentView.addSubview(self.lineView)
-    }
-    
-    // 当我们在子类定义了指定初始化器(包括自定义和重写父类指定初始化器)，那么必须显示实现，其他情况下则会隐式继承
-    // 在类的构造器前添加required修饰符表明所有该类的子类都必须实现该构造器：
-    required init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
-    var customModel : CustomModel! {
-        willSet(newCustomModel) {
-            contentLabel.text = newCustomModel.text
-            selectButton.isSelected = newCustomModel.isSelect ?? false
-            currentModel = newCustomModel
-        }
-    }
-    
-    lazy var  contentLabel: UILabel = {
-        let contentLebel = UILabel.init()
-        contentLebel.backgroundColor = UIColor.white
-        contentLebel.textColor = UIColor.darkText
-        let image = UIImage.init(named: "unselect")
-        contentLebel.frame = CGRect.init(x: 10, y: 0, width:UIScreen.main.bounds.size.width - (image?.size.width)! - 30, height: self.contentView.bounds.height)
-        return contentLebel
-    }()
-    
-    lazy var selectButton: UIButton = {
-        let selectButton = UIButton.init(type: .custom)
-        let image = UIImage.init(named: "unselect")
-        selectButton.setImage(image, for: .normal)
-        selectButton.setImage(UIImage.init(named: "select"), for: .selected)
-        selectButton.addTarget(self, action: #selector(selectButtonAction(_:)), for: .touchUpInside)
-        selectButton.frame = CGRect.init(x:self.contentLabel.frame.maxX + 10, y:(self.contentView.bounds.height-(image?.size.height)!)/2, width: (image?.size.width)!, height: (image?.size.height)!)
-        return selectButton
-    }()
- 
-    lazy var lineView: UIView = {
-        let lineView = UIView.init(frame: CGRect.init(x: 0, y: self.contentView.bounds.maxY - 0.5, width: UIScreen.main.bounds.size.width, height: 0.5))
-        lineView.backgroundColor = UIColor.black
-        return lineView
-    }()
-    
-    @objc func selectButtonAction(_ sender:UIButton) {
-        sender.isSelected = !sender.isSelected
-        customModel.isSelect = sender.isSelected
-        selectBlock!(customModel)
-    }
-    
-}
