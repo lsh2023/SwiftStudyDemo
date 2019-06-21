@@ -8,12 +8,24 @@
 
 import UIKit
 
-class CustomModel: NSObject {
+class CustomModel: Codable {
     var text : String?
     var isSelect : Bool?
+    
+    init(text:String,isSelect:Bool) {
+        self.text = text
+        self.isSelect = isSelect
+    }
+    
 }
 
-class CustomHeaderModel: NSObject {
-    var headerArray : NSMutableArray?
+class CustomHeaderModel: Codable {
+    var headerArray : [CustomModel]
     var time : String?
+    
+    init(headerArray:[CustomModel],time:String) {
+        self.headerArray = headerArray
+        self.time = time
+    }
+    
 }

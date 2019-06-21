@@ -16,11 +16,22 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
        self.navigationItem.rightBarButtonItem = UIBarButtonItem.init(barButtonSystemItem: .add, target: self, action: #selector(rightBarButtonItemAction))
        self.view.addSubview(tableView)
         NotificationCenter.default.addObserver(self, selector: #selector(saveAction), name:NSNotification.Name(rawValue: "SAVEDATA"), object: nil)
-        
+        NotificationCenter.default.addObserver(self, selector: #selector(getAction), name:NSNotification.Name(rawValue: "GETDATA"), object: nil)
     }
     
     @objc func saveAction() {
-//        UserDefaults.standard.set(dataSource, forKey: "SaveData")
+        if let data = try?JSONEncoder().encode(dataSource) {
+            UserDefaults.standard.set(data, forKey: "SaveData")
+        }
+    }
+    
+    @objc func getAction() {
+        if let saveData = UserDefaults.standard.data(forKey: "SaveData") {
+            if let data = try?JSONDecoder().decode([CustomHeaderModel].self, from: saveData) {
+                dataSource = data
+                tableView.reloadData()
+            }
+        }
     }
     
     func numberOfSections(in tableView: UITableView) -> Int {
@@ -29,9 +40,9 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         let headerModel : CustomHeaderModel
-        if dataSource.count > 0 {
-           headerModel  = dataSource[section] as! CustomHeaderModel
-            return headerModel.headerArray?.count ?? 0
+        if !dataSource.isEmpty{
+            headerModel  = dataSource[section]
+            return headerModel.headerArray.count
         }else {
            return 0
         }
@@ -40,20 +51,20 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell : CustomCell = tableView.dequeueReusableCell(withIdentifier: "CustomCell", for: indexPath) as! CustomCell
         
-        let headerModel : CustomHeaderModel = dataSource[indexPath.section] as! CustomHeaderModel
-        let customModel = headerModel.headerArray?[indexPath.row]
-        cell.customModel = (customModel as! CustomModel)
+        let headerModel : CustomHeaderModel = dataSource[indexPath.section]
+        let customModel = headerModel.headerArray[indexPath.row]
+        cell.customModel = customModel
     
         return cell
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        let headerModel : CustomHeaderModel = dataSource[indexPath.section] as! CustomHeaderModel
-        let customModel : CustomModel = headerModel.headerArray?[indexPath.row] as! CustomModel
+        let headerModel : CustomHeaderModel = dataSource[indexPath.section]
+        let customModel : CustomModel = headerModel.headerArray[indexPath.row]
         customModel.isSelect = !customModel.isSelect!
-        headerModel.headerArray?.replaceObject(at: indexPath.row, with: customModel)
-        self.dataSource.replaceObject(at: indexPath.section, with:headerModel)
+        headerModel.headerArray[indexPath.row] = customModel
+        self.dataSource[indexPath.section] = headerModel
         tableView.reloadRows(at: [indexPath], with: .left)
     
     }
@@ -68,9 +79,9 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
     
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         
-        let headerModel : CustomHeaderModel = dataSource[indexPath.section] as! CustomHeaderModel
-        headerModel.headerArray?.removeObject(at: indexPath.row)
-        self.dataSource.replaceObject(at: indexPath.section, with: headerModel)
+        let headerModel : CustomHeaderModel = dataSource[indexPath.section]
+        headerModel.headerArray.remove(at: indexPath.row)
+        self.dataSource[indexPath.section] = headerModel
         
         self.tableView.reloadData()
         
@@ -79,7 +90,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
     func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
         let view = UIView()
         
-        let headerModel : CustomHeaderModel = dataSource[section] as! CustomHeaderModel
+        let headerModel : CustomHeaderModel = dataSource[section]
         
         let label = UILabel.init(frame:CGRect.init(x: 0, y: 0, width: UIScreen.main.bounds.size.width, height: 44))
         label.text = headerModel.time
@@ -118,8 +129,8 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         return tableView
     }()
     
-    lazy var dataSource : NSMutableArray = {
-        var dataSource = NSMutableArray.init(capacity: 0)
+    lazy var dataSource : [CustomHeaderModel] = {
+        let dataSource = [CustomHeaderModel]()
         return dataSource
     }()
 
@@ -154,27 +165,21 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         let okAction = UIAlertAction(title: "确定", style: .default) { (action:UIAlertAction) in
             let textField = alertController.textFields?.first
             
-            let customModel = CustomModel()
-            customModel.text = textField?.text
-            customModel.isSelect = false
+            let customModel = CustomModel.init(text: textField?.text ?? "", isSelect: false)
             if saveDate != currentDate {
-                let customHeaderModel = CustomHeaderModel()
-                customHeaderModel.headerArray = NSMutableArray.init(capacity: 0)
-                customHeaderModel.time = currentDate
-                customHeaderModel.headerArray?.add(customModel)
-                self.dataSource.add(customHeaderModel)
+                let customHeaderModel = CustomHeaderModel.init(headerArray: [], time: currentDate)
+                customHeaderModel.headerArray.append(customModel)
+                self.dataSource.append(customHeaderModel)
             } else {
                 let customHeaderModel : CustomHeaderModel
-                if self.dataSource.count > 0 {
-                    customHeaderModel = self.dataSource.lastObject as! CustomHeaderModel
-                    customHeaderModel.headerArray?.add(customModel)
-                    self.dataSource.replaceObject(at: self.dataSource.count - 1, with: customHeaderModel)
+                if !self.dataSource.isEmpty {
+                    customHeaderModel = self.dataSource.last!
+                    customHeaderModel.headerArray.append(customModel)
+                    self.dataSource[self.dataSource.count - 1] = customHeaderModel
                 }else {
-                    let customHeaderModel = CustomHeaderModel()
-                    customHeaderModel.headerArray = NSMutableArray.init(capacity: 0)
-                    customHeaderModel.time = currentDate
-                    customHeaderModel.headerArray?.add(customModel)
-                    self.dataSource.add(customHeaderModel)
+                    let customHeaderModel = CustomHeaderModel.init(headerArray: [], time: currentDate)
+                    customHeaderModel.headerArray.append(customModel)
+                    self.dataSource.append(customHeaderModel)
                 }
             }
             self.tableView.reloadData()
@@ -192,7 +197,7 @@ class ViewController: UIViewController,UITableViewDelegate,UITableViewDataSource
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
         return dateFormatter.string(from: Date())
-    }
+    } 
     
     
 }
